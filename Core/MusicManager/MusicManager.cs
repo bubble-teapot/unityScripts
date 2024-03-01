@@ -1,0 +1,134 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Events;
+
+namespace Core
+{
+    public class MusicManager : Singleton<MusicManager>,ManagerInit
+    {
+        //唯一的背景音乐组件
+        private AudioSource bkMusic = null;
+        //音乐大小
+        private float bkValue;
+
+        //音效依附对象
+        private GameObject soundObj = null;
+        //音效列表
+        private List<AudioSource> soundList = null;
+        //音效大小
+        private float soundValue;
+
+        public void Init()
+        {
+            bkValue = 1;
+            soundValue = 1;
+            soundList = new List<AudioSource>();
+            //在mono的update函数中执行Update方法
+            MonoProxy.Instance.AddUpdateListener(OnUpdate);
+
+            Debug.Log("MusicManager 初始化完成...");
+        }
+
+        //更新播放列表和播放源组件
+        private void OnUpdate()
+        {
+            for (int i = soundList.Count - 1; i >= 0; --i)
+            {
+                if (!soundList[i].isPlaying)
+                {
+                    GameObject.Destroy(soundList[i]);
+                    soundList.RemoveAt(i);
+                }
+            }
+        }
+
+        /// <summary> 播放背景音乐 </summary>
+        /// <param name="name"></param>
+        public void PlayBkMusic(string name)
+        {
+            if (bkMusic == null)
+            {
+                GameObject obj = new GameObject();
+                obj.name = "BkMusic";
+                bkMusic = obj.AddComponent<AudioSource>();
+            }
+            //异步加载背景音乐 加载完成后 播放
+            ABManager.Instance.LoadResAsync<AudioClip>("music/bk", name, (clip) =>
+            {
+                bkMusic.clip = clip;
+                bkMusic.loop = true;
+                bkMusic.volume = bkValue;
+                bkMusic.Play();
+            });
+
+        }
+
+        /// <summary> 暂停背景音乐 </summary>
+        public void PauseBKMusic()
+        {
+            if (bkMusic == null)
+                return;
+            bkMusic.Pause();
+        }
+
+        /// <summary> 停止背景音乐 </summary>
+        public void StopBKMusic()
+        {
+            if (bkMusic == null)
+                return;
+            bkMusic.Stop();
+        }
+
+        /// <summary> 改变背景音乐 音量大小 </summary>
+        /// <param name="v"></param>
+        public void ChangeBKValue(float v)
+        {
+            bkValue = v;
+            if (bkMusic == null)
+                return;
+            bkMusic.volume = bkValue;
+        }
+
+        /// <summary> 播放音效 </summary>
+        public void PlaySound(string name, bool isLoop, UnityAction<AudioSource> callBack = null)
+        {
+            if (soundObj == null)
+            {
+                soundObj = new GameObject();
+                soundObj.name = "Sound";
+            }
+            //当音效资源异步加载结束后 再添加一个音效,"路径"为包名
+            ABManager.Instance.LoadResAsync<AudioClip>("music", name, (clip) =>
+            {
+                AudioSource source = soundObj.AddComponent<AudioSource>();
+                source.clip = clip;
+                source.loop = isLoop;
+                source.volume = soundValue;
+                source.Play();
+                soundList.Add(source);
+                if (callBack != null)
+                    callBack(source);
+            });
+        }
+
+        /// <summary> 改变音效声音大小 </summary>
+        /// <param name="value"></param>
+        public void ChangeSoundValue(float value)
+        {
+            soundValue = value;
+            for (int i = 0; i < soundList.Count; ++i)
+                soundList[i].volume = value;
+        }
+
+        /// <summary> 停止音效 </summary>
+        public void StopSound(AudioSource source)
+        {
+            if (soundList.Contains(source))
+            {
+                soundList.Remove(source);
+                source.Stop();
+                GameObject.Destroy(source);
+            }
+        }
+    }
+}

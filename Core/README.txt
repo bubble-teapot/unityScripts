@@ -1,0 +1,1 @@
+需要先调用GameEntry的Init才能使用此脚本。或者手动调用各个Manager的Init方法。
